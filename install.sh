@@ -1,17 +1,12 @@
 #!/usr/bin/env bash
 # fcmd installer — downloads latest release and installs + starts the daemon.
-# Usage: curl -fsSL https://raw.githubusercontent.com/<owner>/fcmd/main/install.sh | bash
-# Override the repo with FCMD_REPO=<owner>/<repo>.
+# Usage: curl -fsSL https://raw.githubusercontent.com/iluxav/fcmd/main/install.sh | bash
+# Fork users can override the source repo with FCMD_REPO=<owner>/<repo>.
 set -euo pipefail
 
-REPO="${FCMD_REPO:-}"
+REPO="${FCMD_REPO:-iluxav/fcmd}"
 PREFIX="${FCMD_PREFIX:-/usr/local/bin}"
 VERSION="${FCMD_VERSION:-latest}"
-
-if [[ -z "$REPO" ]]; then
-  echo "FCMD_REPO is required (e.g. FCMD_REPO=iluxav/fcmd)" >&2
-  exit 1
-fi
 
 uname_s=$(uname -s | tr '[:upper:]' '[:lower:]')
 uname_m=$(uname -m)
