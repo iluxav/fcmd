@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -155,6 +156,64 @@ func headerCell(text string) *tview.TableCell {
 		SetAttributes(tcell.AttrBold)
 }
 
+// Unicode glyphs for the pane rows. These are all single or double-width
+// BMP/emoji characters — no Nerd Font needed.
+const (
+	iconDir     = "📁"
+	iconFile    = "📄"
+	iconUp      = "⬆ "
+	iconHost    = "🖥 "
+	iconImage   = "🖼 "
+	iconAudio   = "🎵"
+	iconVideo   = "🎬"
+	iconArchive = "📦"
+	iconCode    = "📝"
+	iconExec    = "⚙ "
+)
+
+func fileIcon(e vfs.Entry) string {
+	if e.Name == ".." {
+		return iconUp
+	}
+	if e.IsDir {
+		return iconDir
+	}
+	ext := strings.ToLower(pathExt(e.Name))
+	switch ext {
+	case ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".svg", ".ico", ".tiff":
+		return iconImage
+	case ".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac", ".opus":
+		return iconAudio
+	case ".mp4", ".mov", ".avi", ".mkv", ".webm", ".wmv", ".flv":
+		return iconVideo
+	case ".zip", ".tar", ".gz", ".bz2", ".xz", ".7z", ".rar", ".tgz":
+		return iconArchive
+	case ".go", ".rs", ".c", ".h", ".cpp", ".hpp", ".py", ".js", ".ts", ".tsx",
+		".jsx", ".rb", ".java", ".sh", ".bash", ".zsh", ".lua", ".php", ".sql",
+		".json", ".yaml", ".yml", ".toml", ".xml", ".html", ".css", ".md":
+		return iconCode
+	case ".exe", ".bin", ".appimage", ".so", ".dylib", ".dll":
+		return iconExec
+	}
+	// Executable file without a known extension.
+	if e.Mode&0o111 != 0 && !e.IsDir {
+		return iconExec
+	}
+	return iconFile
+}
+
+func pathExt(name string) string {
+	for i := len(name) - 1; i >= 0; i-- {
+		if name[i] == '.' {
+			return name[i:]
+		}
+		if name[i] == '/' {
+			break
+		}
+	}
+	return ""
+}
+
 func (p *pane) renderHosts() {
 	if len(p.hosts) == 0 {
 		p.table.SetCell(1, 1, tview.NewTableCell("(scanning — press r to rescan)").SetTextColor(tcell.ColorGray))
@@ -162,7 +221,7 @@ func (p *pane) renderHosts() {
 	}
 	for i, h := range p.hosts {
 		row := i + 1
-		p.table.SetCell(row, 0, tview.NewTableCell(" *"))
+		p.table.SetCell(row, 0, tview.NewTableCell("  "+iconHost).SetTextColor(tcell.ColorLightGreen))
 		p.table.SetCell(row, 1, tview.NewTableCell(fmt.Sprintf("%s (%s)", h.Name, h.Addr)).SetTextColor(tcell.ColorLightGreen))
 		p.table.SetCell(row, 2, tview.NewTableCell(fmt.Sprintf(":%d", h.Port)).SetAlign(tview.AlignRight).SetTextColor(tcell.ColorGray))
 		p.table.SetCell(row, 3, tview.NewTableCell(""))
@@ -172,7 +231,7 @@ func (p *pane) renderHosts() {
 func (p *pane) renderRoots() {
 	for i, r := range p.roots {
 		row := i + 1
-		p.table.SetCell(row, 0, tview.NewTableCell(" D"))
+		p.table.SetCell(row, 0, tview.NewTableCell("  "+iconDir).SetTextColor(tcell.ColorLightSkyBlue))
 		p.table.SetCell(row, 1, tview.NewTableCell(r.Name).SetTextColor(tcell.ColorLightSkyBlue))
 		p.table.SetCell(row, 2, tview.NewTableCell("<DIR>").SetAlign(tview.AlignRight).SetTextColor(tcell.ColorGray))
 		p.table.SetCell(row, 3, tview.NewTableCell(r.Path).SetAlign(tview.AlignRight).SetTextColor(tcell.ColorGray))
@@ -194,14 +253,11 @@ func (p *pane) renderEntries() {
 	p.displayRows = display
 	for i, e := range display {
 		row := i + 1
-		mark := "  "
+		mark := " "
 		if p.selected[e.Name] {
-			mark = " *"
+			mark = "*"
 		}
-		icon := " F"
-		if e.IsDir {
-			icon = " D"
-		}
+		icon := fileIcon(e)
 		name := e.Name
 		color := tcell.ColorWhite
 		if e.IsDir {
@@ -210,7 +266,7 @@ func (p *pane) renderEntries() {
 		if p.selected[e.Name] {
 			color = tcell.ColorYellow
 		}
-		p.table.SetCell(row, 0, tview.NewTableCell(mark+icon[1:]).SetTextColor(color))
+		p.table.SetCell(row, 0, tview.NewTableCell(mark+" "+icon).SetTextColor(color))
 		p.table.SetCell(row, 1, tview.NewTableCell(name).SetTextColor(color))
 		sizeStr := "<DIR>"
 		byteStr := ""
